@@ -1,0 +1,1566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UPSC Study Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { background: #0d1117; font-family: 'Sora', sans-serif; color: #e2e8f0; overflow: hidden; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2d3748; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #374151; }
+    input, select, textarea {
+      background: #0f172a; color: #e2e8f0; border: 1px solid #2d3748;
+      border-radius: 8px; padding: 9px 12px; font-family: 'Sora', sans-serif;
+      font-size: 13px; outline: none; width: 100%; transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: #3b82f6; }
+    select option { background: #1a2035; }
+    button { font-family: 'Sora', sans-serif; cursor: pointer; }
+    .nav-item { transition: all 0.18s ease; }
+    .nav-item:hover { background: rgba(59,130,246,0.08) !important; color: #93c5fd !important; }
+    .card { background: #1a2035; border-radius: 14px; border: 1px solid #1e2d40; }
+    .btn-primary { background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 600; font-size: 14px; transition: background 0.2s; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-ghost { background: transparent; color: #94a3b8; border: 1px solid #2d3748; border-radius: 8px; padding: 9px 14px; font-size: 13px; transition: all 0.2s; }
+    .btn-ghost:hover { background: #1e2533; border-color: #374151; color: #e2e8f0; }
+    .tab-btn { padding: 6px 12px; border-radius: 8px; border: none; font-size: 12px; font-weight: 500; transition: all 0.18s; }
+    .tab-btn.active { background: #3b82f6; color: #fff; }
+    .tab-btn:not(.active) { background: #0f172a; color: #64748b; }
+    .tab-btn:not(.active):hover { background: #1e2533; color: #94a3b8; }
+    .activity-row { background: #0f172a; border: 1px solid #1e2d40; border-radius: 8px; padding: 10px 12px; display: flex; align-items: center; gap: 10px; transition: border-color 0.2s; }
+    .activity-row:hover { border-color: #2d3748; }
+    .delete-btn { background: none; border: none; color: #374151; font-size: 18px; padding: 0 2px; line-height: 1; transition: color 0.18s; }
+    .delete-btn:hover { color: #ef4444; }
+    .mini-stat { background: #0f172a; border-radius: 8px; padding: 12px; }
+    .progress-bar { background: #0f172a; border-radius: 4px; height: 7px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.72); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal-box { background: #1a2035; border: 1px solid #2d3748; border-radius: 16px; padding: 28px; width: 520px; max-width: 95vw; box-shadow: 0 30px 60px rgba(0,0,0,0.5); }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 5px; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: scale(1); } }
+    .modal-box { animation: fadeIn 0.18s ease; }
+    @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+    .toast { position: fixed; bottom: 24px; right: 24px; background: #22c55e; color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 9999; animation: fadeIn 0.2s ease; box-shadow: 0 8px 24px rgba(34,197,94,0.3); }
+    /* ═════════════════════════════
+   MOBILE RESPONSIVE — S21
+═════════════════════════════ */
+@media (max-width: 600px) {
+* {
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+img,
+canvas,
+svg {
+  max-width: 100% !important;
+  height: auto !important;
+}
+
+.recharts-wrapper {
+  width: 100% !important;
+}
+
+.recharts-surface {
+  width: 100% !important;
+}
+body {
+  overflow: auto;
+}
+
+#root {
+  height: auto;
+  min-height: 100vh;
+}
+
+.app-layout {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+}
+
+aside {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 250px !important;
+  z-index: 2000;
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  height: 100vh;
+}
+
+aside.mobile-open {
+  transform: translateX(0);
+}
+
+header {
+  width: 100% !important;
+  padding: 12px !important;
+  flex-wrap: wrap;
+  gap: 10px !important;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+header h1 {
+  font-size: 18px !important;
+}
+
+main {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 12px !important;
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+  height: auto !important;
+  box-sizing: border-box;
+}
+
+.dashboard-grid {
+  grid-template-columns: 1fr !important;
+  gap: 12px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.card {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 14px !important;
+  border-radius: 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mini-stat {
+  padding: 10px;
+}
+
+.grid-2 {
+  grid-template-columns: 1fr !important;
+}
+
+.modal-box {
+  width: 95vw !important;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px !important;
+}
+
+.btn-primary,
+.btn-ghost {
+  min-height: 42px;
+  font-size: 13px;
+}
+
+.timer-display {
+  font-size: 28px !important;
+  letter-spacing: 2px !important;
+}
+
+.chart-container {
+  width: 100% !important;
+  height: 220px !important;
+  overflow: hidden;
+}
+
+.activity-row {
+  align-items: flex-start;
+  padding: 10px;
+}
+
+.header-stats {
+  width: 100%;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.toast {
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+  width: auto;
+}
+
+.tab-btn {
+  flex: 1;
+  font-size: 11px;
+  padding: 8px 10px;
+}
+
+input,
+select,
+textarea {
+  font-size: 14px;
+}
+}
+
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+// ═══════════════════════════════════════════
+//   FIREBASE CONFIG — Replace to enable sync
+// ═══════════════════════════════════════════
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBUY6tU1fzcMdarRc_1csZTQEnWvjdSwrU",
+  authDomain: "fevi2802.firebaseapp.com",
+  projectId: "fevi2802",
+  storageBucket: "fevi2802.firebasestorage.app",
+  messagingSenderId: "728284475321",
+  appId: "1:728284475321:web:b742457f7558f764f71068"
+};
+
+
+let db = null;
+try {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+
+  console.log("Firebase connected successfully");
+} catch (e) {
+  console.warn("Firebase init failed:", e);
+}
+
+// ═══════════════════════════════════════════
+//   CONSTANTS
+// ═══════════════════════════════════════════
+const COURSES = ['Polity','History','Geography','Economics','Science & Tech','Environment','Current Affairs','Sociology','Ethics','CSAT','Art & Culture'];
+const SUBJECTS_MAP = {
+  'Polity': ['Indian Constitution','Parliament','Judiciary','Executive','Federalism','Local Govt','Elections','Emergency Provisions'],
+  'History': ['Ancient India','Medieval India','Modern India','World History','Post-Independence'],
+  'Geography': ['Physical Geography','Indian Geography','World Geography','Economic Geography','Human Geography'],
+  'Economics': ['Macroeconomics','Microeconomics','Indian Economy','Budget & Finance','Banking','Agriculture'],
+  'Science & Tech': ['Physics','Chemistry','Biology','Technology','Space & Defence','Health & Medicine'],
+  'Environment': ['Ecology','Biodiversity','Climate Change','Env. Laws & Agreements','Pollution','Conservation'],
+  'Current Affairs': ['National','International','Economy','Science & Tech','Sports','Awards','Schemes & Policies'],
+  'Sociology' : ['Paper I', 'Paper II'],
+  'Ethics': ['Ethical Theory','Integrity & Values','Case Studies','Public Service Ethics','Corporate Ethics'],
+  'CSAT': ['Reading Comprehension','Quantitative Aptitude','Logical Reasoning','Data Interpretation'],
+  'Art & Culture': ['Architecture','Literature','Music & Dance','Paintings','Festivals','Philosophy'],
+};
+const ACTIVITY_TYPES = ['Study','Revision','Test Practice','Note-Making','Mock Interview','Group Discussion'];
+const COURSE_COLORS = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa'];
+
+// ═══════════════════════════════════════════
+//   HELPERS
+// ═══════════════════════════════════════════
+const fmtMins = (m) => {
+  m = parseInt(m) || 0;
+  const h = Math.floor(m / 60), min = m % 60;
+  if (h > 0 && min > 0) return `${h}h ${min}m`;
+  if (h > 0) return `${h}h`;
+  return `${min}m`;
+};
+const fmtSecs = (s) => {
+  const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+};
+const todayStr = () => new Date().toISOString().split('T')[0];
+const weekDatesArr = () => {
+  const now = new Date(), dow = now.getDay();
+  const mon = new Date(now); mon.setDate(now.getDate() - ((dow+6)%7));
+  return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return d.toISOString().split('T')[0]; });
+};
+const minsForDate = (acts, date) => acts.filter(a=>a.date===date).reduce((s,a)=>s+(parseInt(a.duration)||0),0);
+const calcStreak = (acts) => {
+  const dates = new Set(acts.map(a=>a.date));
+  let streak=0, d=new Date();
+  while(dates.has(d.toISOString().split('T')[0])) { streak++; d.setDate(d.getDate()-1); }
+  return streak;
+};
+const genId = () => `${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+
+// ═══════════════════════════════════════════
+//   LOCAL STORAGE
+// ═══════════════════════════════════════════
+const LS = {
+  getActs: () => JSON.parse(localStorage.getItem('upsc_acts')||'[]'),
+  setActs: (a) => localStorage.setItem('upsc_acts', JSON.stringify(a)),
+  getGoal: () => JSON.parse(localStorage.getItem('upsc_goal')||'{"dailyHrs":7,"targetDate":"2027-05-23","studyDayTarget":381}'),
+  setGoal: (g) => localStorage.setItem('upsc_goal', JSON.stringify(g)),
+};
+
+// ═══════════════════════════════════════════
+//   SUB-COMPONENTS
+// ═══════════════════════════════════════════
+
+const NavItem = ({icon, label, active, onClick}) => (
+  <div onClick={onClick} className="nav-item" style={{
+    display:'flex', alignItems:'center', gap:12, padding:'9px 14px',
+    cursor:'pointer', borderRadius:8, margin:'1px 8px', userSelect:'none',
+    background: active ? 'rgba(59,130,246,0.15)' : 'transparent',
+    color: active ? '#60a5fa' : '#64748b',
+    fontSize:13.5, fontWeight: active ? 600 : 400,
+  }}>
+    <span style={{fontSize:17, lineHeight:1}}>{icon}</span>
+    <span>{label}</span>
+    {active && <span style={{marginLeft:'auto', width:6, height:6, borderRadius:'50%', background:'#3b82f6'}} />}
+  </div>
+);
+
+const DonutChart = React.memo(({data}) => {
+  const ref = React.useRef(null);
+  const chart = React.useRef(null);
+  React.useEffect(() => {
+    if (!ref.current) return;
+    if (chart.current) chart.current.destroy();
+    const entries = Object.entries(data).sort((a,b)=>b[1]-a[1]);
+    if (!entries.length) return;
+    chart.current = new Chart(ref.current, {
+      type:'doughnut',
+      data: {
+        labels: entries.map(([k])=>k),
+        datasets:[{
+          data: entries.map(([,v])=>v),
+          backgroundColor: COURSE_COLORS.slice(0,entries.length),
+          borderWidth:0, hoverBorderWidth:3, hoverBorderColor:'#fff'
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false, cutout:'75%',
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{label:(c)=>` ${c.label}: ${fmtMins(c.raw)}`}}
+        }
+      }
+    });
+    return ()=>{ if(chart.current) chart.current.destroy(); };
+  }, [JSON.stringify(data)]);
+  return <div className="chart-container"  style={{position:'relative',height:170}}><canvas ref={ref} role="img" aria-label="Study hours by course" /></div>;
+});
+
+const WeekChart = React.memo(({weekData}) => {
+  const ref = React.useRef(null);
+  const chart = React.useRef(null);
+  React.useEffect(()=>{
+    if(!ref.current) return;
+    if(chart.current) chart.current.destroy();
+    chart.current = new Chart(ref.current, {
+      type:'line',
+      data:{
+        labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+        datasets:[{
+          data: weekData.map(m => parseFloat((m/60).toFixed(2))),
+          borderColor:'#3b82f6',
+          backgroundColor:'rgba(59,130,246,0.08)',
+          borderWidth:2.5, fill:true, tension:0.4,
+          pointRadius:5, pointBackgroundColor:'#3b82f6',
+          pointBorderColor:'#1a2035', pointBorderWidth:2.5,
+        }]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>` ${fmtMins(Math.round(c.raw*60))}`}}},
+        scales:{
+          x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#4b5563',font:{size:11,family:'Sora'}}},
+          y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#4b5563',font:{size:11,family:'Sora'},callback:v=>`${v}h`},beginAtZero:true}
+        }
+      }
+    });
+    return ()=>{ if(chart.current) chart.current.destroy(); };
+  },[JSON.stringify(weekData)]);
+  return <div style={{position:'relative',height:130}}><canvas ref={ref} role="img" aria-label="Weekly study hours" /></div>;
+});
+
+const StreakRow = ({activities}) => {
+  const week = weekDatesArr();
+  const t = todayStr();
+  const active = new Set(activities.map(a=>a.date));
+  return (
+    <div style={{display:'flex', gap:6, marginTop:12}}>
+      {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map((day,i)=>{
+        const date = week[i];
+        const restDay = activities.some(
+          a =>
+            a.date === date &&
+            a.type === 'Rest Day'
+        );
+        const done = active.has(date);
+        const past = date < t;
+        const isToday = date === t;
+        return (
+          <div key={day} style={{flex:1, textAlign:'center'}}>
+            <div style={{fontSize:10.5, color:'#4b5563', marginBottom:6, letterSpacing:0.3}}>{day}</div>
+            <div style={{
+              width:32, height:32, borderRadius:'50%', margin:'0 auto',
+              display:'flex', alignItems:'center', justifyContent:'center',
+              background: done ? '#16a34a' : 'transparent',
+              border: isToday && !done ? '2px solid #3b82f6' : past && !done ? '1.5px solid #1e2d40' : done ? 'none' : '1.5px dashed #1e2d40',
+              fontSize:14, color: done ? '#fff' : '#374151',
+              transition:'all 0.2s',
+            }}>
+              {
+                restDay
+                  ? '🦉'
+                  : done
+                    ? '✓'
+                    : past
+                      ? '✗'
+                      : isToday
+                        ? '·'
+                        : ''
+              }
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const Toast = ({msg}) => <div className="toast">✓ {msg}</div>;
+
+const AddModal = ({onClose, onSave}) => {
+  const [form, setForm] = React.useState({
+    date: todayStr(), type:'Study', course:'Polity',
+    subject:'', topic:'', startTime:'09:00', duration:60,
+  });
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-box">
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22}}>
+          <div>
+            <h2 style={{fontSize:18, fontWeight:700, color:'#e2e8f0'}}>Log Study Session</h2>
+            <p style={{fontSize:12, color:'#64748b', marginTop:3}}>Track your learning activity</p>
+          </div>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'#64748b',fontSize:24,lineHeight:1,padding:'2px 6px'}}>×</button>
+        </div>
+
+        <div className="grid-2">
+          <div>
+            <label className="label">Date</label>
+            <input type="date" value={form.date} onChange={e=>set('date',e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Activity Type</label>
+            <select value={form.type} onChange={e=>set('type',e.target.value)}>
+              {ACTIVITY_TYPES.map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Course</label>
+            <select value={form.course} onChange={e=>{ set('course',e.target.value); set('subject',''); }}>
+              {COURSES.map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="label">Subject</label>
+            <select value={form.subject} onChange={e=>set('subject',e.target.value)}>
+              <option value="">— Select —</option>
+              {(SUBJECTS_MAP[form.course]||[]).map(s=><option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div style={{gridColumn:'1/-1'}}>
+            <label className="label">Topic (optional)</label>
+            <input type="text" value={form.topic} onChange={e=>set('topic',e.target.value)}
+              placeholder="e.g. Fundamental Rights, Article 19…" />
+          </div>
+          <div>
+            <label className="label">Start Time</label>
+            <input type="time" value={form.startTime} onChange={e=>set('startTime',e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Duration (minutes)</label>
+            <input type="number" value={form.duration} min={1} max={720}
+              onChange={e=>set('duration',parseInt(e.target.value)||0)} />
+          </div>
+        </div>
+
+        <div style={{marginTop:10, padding:'10px 12px', background:'rgba(59,130,246,0.08)', borderRadius:8, fontSize:12, color:'#93c5fd', display:'flex', alignItems:'center', gap:8}}>
+          ℹ️ <span>Session will be saved {db ? 'to Firebase' : 'locally (configure Firebase to sync across devices)'}.</span>
+        </div>
+
+        <div style={{display:'flex', gap:10, marginTop:20}}>
+          <button className="btn-ghost" onClick={onClose} style={{flex:1}}>Cancel</button>
+          <button className="btn-primary" onClick={()=>onSave(form)} style={{flex:2}}>Save Session</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const GoalModal = ({goal, onClose, onSave}) => {
+  const [form, setForm] = React.useState({...goal});
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-box" style={{width:420}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:22}}>
+          <h2 style={{fontSize:18, fontWeight:700, color:'#e2e8f0'}}>Update Goal</h2>
+          <button onClick={onClose} style={{background:'none',border:'none',color:'#64748b',fontSize:24,lineHeight:1,padding:'2px 6px'}}>×</button>
+        </div>
+        <div style={{display:'flex', flexDirection:'column', gap:14}}>
+          <div><label className="label">Daily Study Goal (hours)</label>
+            <input type="number" value={form.dailyHrs} min={1} max={16} step={0.5} onChange={e=>set('dailyHrs',parseFloat(e.target.value)||1)} />
+          </div>
+          <div><label className="label">Target Exam Date</label>
+            <input type="date" value={form.targetDate} onChange={e=>set('targetDate',e.target.value)} />
+          </div>
+          <div><label className="label">Total Study Days Target</label>
+            <input type="number" value={form.studyDayTarget} min={1} max={1000} onChange={e=>set('studyDayTarget',parseInt(e.target.value)||1)} />
+          </div>
+        </div>
+        <div style={{display:'flex', gap:10, marginTop:22}}>
+          <button className="btn-ghost" onClick={onClose} style={{flex:1}}>Cancel</button>
+          <button className="btn-primary" onClick={()=>onSave(form)} style={{flex:2}}>Update Goal</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════
+//   TIMER WIDGET
+// ═══════════════════════════════════════════
+const TimerWidget = ({onLog}) => {
+  const [running, setRunning] = React.useState(false);
+  const [secs, setSecs] = React.useState(0);
+  const [course, setCourse] = React.useState('Polity');
+  const [subject, setSubject] = React.useState('');
+  const intRef = React.useRef(null);
+  const startRef = React.useRef(null);
+
+  React.useEffect(()=>{
+    if(running){
+      startRef.current = new Date();
+      intRef.current = setInterval(()=>setSecs(s=>s+1), 1000);
+    } else { clearInterval(intRef.current); }
+    return ()=>clearInterval(intRef.current);
+  },[running]);
+
+  const handleSave = () => {
+    if(secs < 30) return;
+    const dur = Math.round(secs/60);
+    const st = startRef.current;
+    onLog({
+      date: todayStr(), type:'Study', course, subject, topic:'',
+      startTime:`${String(st.getHours()).padStart(2,'0')}:${String(st.getMinutes()).padStart(2,'0')}`,
+      duration: dur,
+    });
+    setRunning(false); setSecs(0);
+  };
+
+  const handleReset = () => { setRunning(false); setSecs(0); };
+
+  return (
+    <div className="card" style={{padding:18}}>
+      <div style={{fontSize:13, fontWeight:600, color:'#e2e8f0', marginBottom:14, display:'flex', alignItems:'center', gap:6}}>
+        ⏱ Study Timer
+        {db && <span style={{marginLeft:'auto', fontSize:11, color:'#22c55e', fontWeight:400}}>● Firebase sync on</span>}
+      </div>
+      <div className="timer-display" style={{
+        textAlign:'center', fontFamily:'JetBrains Mono, monospace', fontSize:34,
+        fontWeight:500, color: running ? '#22c55e' : secs > 0 ? '#f59e0b' : '#2d3748',
+        letterSpacing:3, marginBottom:14, transition:'color 0.3s',
+      }}>{fmtSecs(secs)}</div>
+      <div style={{marginBottom:10}}>
+        <select value={course} onChange={e=>{setCourse(e.target.value);setSubject('');}}>
+          {COURSES.map(c=><option key={c}>{c}</option>)}
+        </select>
+      </div>
+      <div style={{marginBottom:12}}>
+        <select value={subject} onChange={e=>setSubject(e.target.value)}>
+          <option value="">— Subject (optional) —</option>
+          {(SUBJECTS_MAP[course]||[]).map(s=><option key={s}>{s}</option>)}
+        </select>
+      </div>
+      <div style={{display:'flex', gap:8}}>
+        <button className="btn-primary" onClick={()=>setRunning(r=>!r)}
+          style={{flex:1, background: running ? '#d97706' : '#16a34a'}}>
+          {running ? '⏸ Pause' : '▶ Start'}
+        </button>
+        {secs > 30 && !running && (
+          <button className="btn-primary" onClick={handleSave} style={{flex:1, background:'#3b82f6'}}>💾 Save</button>
+        )}
+        {secs > 0 && (
+          <button className="btn-ghost" onClick={handleReset} style={{padding:'9px 12px'}}>↺</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════
+//   MAIN APP
+// ═══════════════════════════════════════════
+const App = () => {
+  const [acts, setActs] = React.useState(LS.getActs());
+  const [goal, setGoal] = React.useState(LS.getGoal());
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [showGoal, setShowGoal] = React.useState(false);
+  const [activeNav, setActiveNav] = React.useState('dashboard');
+  const [statsTab, setStatsTab] = React.useState('day');
+  const [daysTab, setDaysTab] = React.useState('insights');
+  const [sidebar, setSidebar] = React.useState(true);
+  const [toast, setToast] = React.useState(null);
+  const [restMode, setRestMode] = React.useState(false);
+  const showToast = (msg) => { setToast(msg); setTimeout(()=>setToast(null), 2500); };
+const today = todayStr();
+
+const todayActivities = acts.filter(
+  a => a.date === today
+);
+  // Firebase real-time listener
+  React.useEffect(()=>{
+    if(!db) return;
+    const unsub = db.collection('activities').orderBy('date','desc').onSnapshot(snap=>{
+      const data = snap.docs.map(d=>({id:d.id,...d.data()}));
+      setActs(data); LS.setActs(data);
+    });
+    db.collection('goals').doc('main').onSnapshot(snap=>{ if(snap.exists){ setGoal(snap.data()); LS.setGoal(snap.data()); }});
+    return ()=>unsub();
+  },[]);
+const [currentDay, setCurrentDay] = React.useState(todayStr());
+React.useEffect(() => {
+  const interval = setInterval(() => {
+    const newDay = todayStr();
+
+    if (newDay !== currentDay) {
+
+      // reset daily-only states
+      setCurrentDay(newDay);
+      setRestMode(false);
+
+      // optional:
+      // reset notes if they are daily notes
+      // setNotes('');
+
+      showToast('New day started 🌅');
+    }
+  }, 60000); // check every minute
+
+  return () => clearInterval(interval);
+}, [currentDay]);
+  // ── Computed ──
+  const t = todayStr();
+  const week = weekDatesArr();
+  const todayMins = todayActivities.reduce(
+  (sum, a) => sum + (parseInt(a.duration) || 0),
+  0
+);
+  const weekMins  = week.reduce((s,d)=>s+minsForDate(acts,d),0);
+  const month = t.slice(0,7);
+  const monthMins = acts.filter(a=>a.date.startsWith(month)).reduce((s,a)=>s+(parseInt(a.duration)||0),0);
+  const totalMins = acts.reduce((s,a)=>s+(parseInt(a.duration)||0),0);
+  const streak = calcStreak(acts);
+  const uniqueDays = new Set(acts.map(a=>a.date)).size;
+  const goalMins = goal.dailyHrs * 60;
+  const dayPct = Math.min(100, goalMins>0 ? Math.round(todayMins/goalMins*100) : 0);
+  const targetD = new Date(goal.targetDate);
+  const daysLeft = Math.max(0, Math.ceil((targetD-new Date())/(864e5)));
+  const elapsed = Math.min(100, Math.round((1-daysLeft/365)*100));
+  const courseBD = todayActivities.reduce((acc, a) => {
+
+  if (a.course) {
+    acc[a.course] =
+      (acc[a.course] || 0) +
+      (parseInt(a.duration) || 0);
+  }
+
+  return acc;
+
+}, {});
+  const weekData = week.map(d=>minsForDate(acts,d));
+  const statsVal = {day:todayMins, week:weekMins, month:monthMins, total:totalMins}[statsTab];
+  const statsGoal = {day:goalMins, week:goalMins*5, month:goalMins*22, total:null}[statsTab];
+
+  // ── Handlers ──
+  const addActivity = (form) => {
+    const item = {...form, id:genId(), duration:parseInt(form.duration)||0};
+    const updated = [item, ...acts];
+    setActs(updated); LS.setActs(updated);
+    if(db) db.collection('activities').doc(item.id).set(item);
+    setShowAdd(false);
+    showToast('Session saved!');
+  };
+
+  const delActivity = (id) => {
+    const updated = acts.filter(a=>a.id!==id);
+    setActs(updated); LS.setActs(updated);
+    if(db) db.collection('activities').doc(id).delete();
+    showToast('Activity deleted');
+  };
+
+  const saveGoal = (g) => {
+    setGoal(g); LS.setGoal(g);
+    if(db) db.collection('goals').doc('main').set(g);
+    setShowGoal(false);
+    showToast('Goal updated!');
+  };
+const [notes, setNotes] = React.useState(
+  localStorage.getItem('upsc_notes') || ''
+);
+const [, forceClock] = React.useState(0);
+
+React.useEffect(() => {
+
+  const i = setInterval(() => {
+    forceClock(v => v + 1);
+  }, 1000);
+
+  return () => clearInterval(i);
+
+}, []);
+  const exams = [
+    {name:'UPSC Prelims 2027', date:'2027-05-23'},
+    {name:'UPSC Mains 2026',   date:'2027-09-21'},
+    {name:'Interview',          date:'2028-02-01'},
+  ];
+
+  const recent = todayActivities.slice(0,10);
+
+  return (
+    
+  <div className="app-layout" style={{display:'flex', height:'100vh', overflow:'hidden'}}>
+    {/*
+      {sidebar && (
+        <aside style={{
+          width:210, background:'#0b1120', borderRight:'1px solid #1e2d40',
+          display:'flex', flexDirection:'column', flexShrink:0, overflow:'hidden',
+        }}>
+          <div style={{padding:'18px 16px 12px', borderBottom:'1px solid #1e2d40'}}>
+            <div style={{display:'flex', alignItems:'center', gap:9}}>
+              <div style={{width:34, height:34, background:'linear-gradient(135deg,#2563eb,#7c3aed)', borderRadius:9, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18}}>📚</div>
+              <div>
+                <div style={{fontSize:14, fontWeight:700, color:'#e2e8f0', lineHeight:1.2}}>UPSC Prep</div>
+                <div style={{fontSize:11, color:'#4b5563'}}>Study Tracker</div>
+              </div>
+            </div>
+          </div>
+          
+          <nav style={{flex:1, paddingTop:10, overflowY:'auto'}}>
+            {[['dashboard','🏠','Dashboard'],['sessions','📋','Sessions'],['timer','⏱','Timer'],
+              ['courses','📖','Courses'],['goals','🎯','Goals'],['calendar','📅','Calendar'],
+              ['analytics','📊','Analytics'],['notes','📝','Notes'],['resources','📁','Resources']
+            ].map(([id,ic,lb])=>(
+              <NavItem key={id} icon={ic} label={lb} active={activeNav===id} onClick={()=>setActiveNav(id)} />
+            ))}
+              </nav> 
+          
+          <div style={{borderTop:'1px solid #1e2d40', paddingTop:6, paddingBottom:8}}>
+            <NavItem icon="⚙️" label="Settings" active={false} onClick={()=>{}} />
+            <NavItem icon="👤" label="Profile" active={false} onClick={()=>{}} />
+          </div>
+        </aside>
+      )} 
+      */}
+      {/* ── MAIN ── */}
+      <div style={{flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minWidth:0}}>
+        {/* Header */}
+        <header style={{
+          background:'#0b1120', borderBottom:'1px solid #1e2d40',
+          padding:'12px 22px', display:'flex', alignItems:'center', gap:14, flexShrink:0,
+        }}>
+          {/*<button onClick={()=>setSidebar(s=>!s)}
+            style={{background:'none',border:'none',color:'#4b5563',fontSize:20,padding:'2px 4px',lineHeight:1}}>
+            ☰
+          </button>*/}
+          <div style={{flex:1, minWidth:0}}>
+            <div style={{fontSize:11.5, color:'#4b5563', marginBottom:1}}>
+              {new Date().toLocaleDateString('en-IN',{weekday:'short',day:'2-digit',month:'short',year:'numeric'})} • UPSC {targetD.getFullYear()}
+            </div>
+            <h1 style={{fontSize:22, fontWeight:700, color:'#e2e8f0', lineHeight:1}}>Dashboard</h1>
+            
+          </div>
+          
+          <div className="header-stats" style={{display:'flex', gap:18, fontSize:12.5, color:'#4b5563', alignItems:'center', flexWrap:'wrap'}}>
+            <div style={{
+                display:'flex',
+                alignItems:'center',
+                gap:8,
+                padding:'8px 12px',
+                borderRadius:12,
+                background:'rgba(255,255,255,0.04)',
+                border:'1px solid #1e293b',
+                minWidth:115
+              }}>
+
+                <span style={{
+                  fontSize:16
+                }}>
+                  🕒
+                </span>
+
+                <div style={{
+                  display:'flex',
+                  flexDirection:'column'
+                }}>
+
+                  <span style={{
+                    fontSize:14,
+                    fontWeight:700,
+                    color:'#f8fafc',
+                    fontFamily:'JetBrains Mono, monospace'
+                  }}>
+                    {new Date().toLocaleTimeString([],{
+                      hour:'2-digit',
+                      minute:'2-digit'
+                    })}
+                  </span>
+
+                  <span style={{
+                    fontSize:10,
+                    color:'#64748b'
+                  }}>
+                    {new Date().toLocaleDateString('en-IN',{
+                      day:'2-digit',
+                      month:'short'
+                    })}
+                  </span>
+
+                </div>
+
+              </div>
+            <span title="Total study time / Goal">📊 {fmtMins(totalMins)} / {fmtMins(goal.studyDayTarget*goalMins)}</span>
+            <span title="Study days">📅 {uniqueDays} / {goal.studyDayTarget} days</span>
+            <span title="Current streak">🔥 {streak} day streak</span>
+            <span title="Days left to exam" style={{color: daysLeft<30?'#ef4444':daysLeft<90?'#f59e0b':'#4b5563'}}>
+              ⏳ {daysLeft}d left
+            </span>
+            <button className="btn-ghost" onClick={async () => {
+
+  const today = todayStr();
+
+  const existingRestDay = acts.find(
+    a =>
+      a.date === today &&
+      a.type === 'Rest Day'
+  );
+
+  // prevent rest day if study already exists
+  if (!existingRestDay && todayMins > 0) {
+
+    showToast('No rest day 😤');
+
+    return;
+
+  }
+
+  // ADD REST DAY
+  if (!existingRestDay) {
+
+    const item = {
+
+      id: genId(),
+      date: today,
+      type: 'Rest Day',
+      course: 'Recovery',
+      subject: '',
+      topic: 'Rest Day',
+      startTime: '',
+      duration: 0
+
+    };
+
+    const updated = [item, ...acts];
+
+    setActs(updated);
+
+    LS.setActs(updated);
+
+    // FIREBASE SAVE
+    if (db) {
+
+      try {
+
+        await db
+          .collection('activities')
+          .doc(item.id)
+          .set(item);
+
+      } catch (err) {
+
+        console.error(
+          'Rest day save failed:',
+          err
+        );
+
+      }
+
+    }
+
+    showToast('Rest day added 🦉');
+
+  }
+
+  // REMOVE REST DAY
+  else {
+
+    const updated = acts.filter(
+      a => a.id !== existingRestDay.id
+    );
+
+    setActs(updated);
+
+    LS.setActs(updated);
+
+    // FIREBASE DELETE
+    if (db) {
+
+      try {
+
+        await db
+          .collection('activities')
+          .doc(existingRestDay.id)
+          .delete();
+
+      } catch (err) {
+
+        console.error(
+          'Rest day delete failed:',
+          err
+        );
+
+      }
+
+    }
+
+    showToast('Rest day removed');
+
+  }
+
+}}
+          style={{
+            background: restMode
+              ? '#6366f1'
+              : 'transparent',
+
+            color: restMode
+              ? '#fff'
+              : '#94a3b8'
+          }}
+        >
+          🦉 Rest Day
+        </button>
+          </div>
+          <button className="btn-primary" onClick={()=>setShowAdd(true)}
+            style={{display:'flex', alignItems:'center', gap:6, padding:'8px 16px', whiteSpace:'nowrap'}}>
+            + Session
+          </button>
+        </header>
+
+        {/* Dashboard Grid */}
+        <main style={{flex:1, overflowY:'auto', padding:'20px 22px', minWidth:0}}>
+          <div className="dashboard-grid" style={{display:'grid', gridTemplateColumns:'1fr 1.15fr 1fr', gap:18, maxWidth:1440}}>
+
+            {/* ═══ COLUMN 1 ═══ */}
+            <div style={{display:'flex', flexDirection:'column', gap:16}}>
+
+              {/* Study Time */}
+              <div className="card" style={{padding:18}}>
+                <div style={{display:'flex', gap:4, marginBottom:14}}>
+                  {['day','week','month','total'].map(t=>(
+                    <button key={t} className={`tab-btn ${statsTab===t?'active':''}`} onClick={()=>setStatsTab(t)}>
+                      {t.charAt(0).toUpperCase()+t.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14}}>
+                  {[['Today',fmtMins(todayMins),'#22c55e'],['Week',fmtMins(weekMins),'#3b82f6'],['Month',fmtMins(monthMins),'#a78bfa']].map(([l,v,c])=>(
+                    <div key={l} className="mini-stat">
+                      <div style={{fontSize:10.5, color:'#4b5563', marginBottom:4, letterSpacing:0.3}}>{l}</div>
+                      <div style={{fontSize:20, fontWeight:700, color:c}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#4b5563', marginBottom:5}}>
+                    <span>Daily Progress</span>
+                    <span style={{color: dayPct>=100?'#22c55e':'#94a3b8'}}>{dayPct}% — {fmtMins(todayMins)} / {fmtMins(goalMins)}</span>
+                  </div>
+                  <div className="progress-bar">
+                    <div className="progress-fill" style={{width:`${dayPct}%`, background: dayPct>=100?'#16a34a':'linear-gradient(90deg,#2563eb,#7c3aed)'}} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Streaks */}
+              <div className="card" style={{padding:18}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <span style={{fontSize:13.5, fontWeight:600, color:'#e2e8f0'}}>🔥 Weekly Streaks</span>
+                  <span style={{fontSize:13, fontWeight:700, color: streak>0?'#f97316':'#4b5563'}}>
+                    {streak} day{streak!==1?'s':''} 🏆
+                  </span>
+                </div>
+                <StreakRow activities={acts} />
+              </div>
+
+              {/* Week Chart */}
+              <div className="card" style={{padding:18}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+                  <span style={{fontSize:13.5, fontWeight:600, color:'#e2e8f0'}}>📈 This Week</span>
+                  <span style={{fontSize:11.5, color:'#4b5563'}}>{fmtMins(weekMins)} total</span>
+                </div>
+                <WeekChart weekData={weekData} />
+              </div>
+
+              {/* Timer */}
+              <TimerWidget onLog={addActivity} />
+              {/* Notes & Reminders */}
+              <div className="card" style={{padding:18}}>
+
+                <div style={{
+                  display:'flex',
+                  justifyContent:'space-between',
+                  alignItems:'center',
+                  marginBottom:12
+                }}>
+                  <span style={{
+                    fontSize:13.5,
+                    fontWeight:600,
+                    color:'#e2e8f0'
+                  }}>
+                    📝 Notes & Reminders
+                  </span>
+
+                  <span style={{
+                    fontSize:11,
+                    color:'#64748b'
+                  }}>
+                    Auto-saved
+                  </span>
+                </div>
+
+                <textarea
+                  placeholder="Write reminders, pending topics, revision plans..."
+                  value={notes}
+                  onChange={(e) => {
+
+                    setNotes(e.target.value);
+
+                    localStorage.setItem(
+                      'upsc_notes',
+                      e.target.value
+                    );
+
+                  }}
+                  style={{
+                    minHeight:140,
+                    resize:'vertical',
+                    lineHeight:1.6
+                  }}
+                />
+
+              </div>
+            </div>
+
+            {/* ═══ COLUMN 2 ═══ */}
+            <div style={{display:'flex', flexDirection:'column', gap:16}}>
+
+              {/* Goals */}
+              <div className="card" style={{padding:18}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+                  <span style={{fontSize:13.5, fontWeight:600, color:'#e2e8f0'}}>🎯 Goals</span>
+                  <span style={{fontSize:11.5, color:'#64748b'}}>Target: {new Date(goal.targetDate).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</span>
+                </div>
+
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14}}>
+                  {[
+                    ['Time Left',
+                      fmtMins(Math.max(0, goalMins - todayMins)),
+                      todayMins >= goalMins ? '#22c55e' : '#f59e0b'
+                    ],
+                    ['Daily Goal', `${goal.dailyHrs}h`, '#3b82f6'],
+                    ['Sessions', todayActivities.length, '#a78bfa'],
+                  ].map(([l,v,c])=>(
+                    <div key={l} className="mini-stat" style={{textAlign:'center'}}>
+                      <div style={{fontSize:10.5, color:'#4b5563', marginBottom:5}}>{l}</div>
+                      <div style={{fontSize:22, fontWeight:700, color:c}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{marginBottom:12}}>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#4b5563', marginBottom:5}}>
+                    <span>Study Progress</span>
+                    <span style={{color:dayPct>=100?'#22c55e':'#94a3b8', fontWeight:500}}>{dayPct}%</span>
+                  </div>
+                  <div className="progress-bar"><div className="progress-fill" style={{width:`${dayPct}%`, background:'#3b82f6'}} /></div>
+                </div>
+
+                {/*<div style={{marginBottom:14}}>
+                  <div style={{display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#4b5563', marginBottom:5}}>
+                    <span>Time Elapsed (to exam)</span>
+                    <span style={{fontWeight:500, color:'#f59e0b'}}>{elapsed}%</span>
+                  </div>
+                  <div className="progress-bar"><div className="progress-fill" style={{width:`${elapsed}%`, background:'#d97706'}} /></div>
+                </div>*/}
+
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14}}>
+                  <div className="mini-stat">
+                    <div style={{fontSize:10.5, color:'#4b5563', marginBottom:4}}>Daily Goal</div>
+                    <div style={{fontSize:20, fontWeight:700, color:'#3b82f6'}}>{goal.dailyHrs}h</div>
+                  </div>
+                  <div className="mini-stat">
+                    <div style={{fontSize:10.5, color:'#4b5563', marginBottom:4}}>Study Day Target</div>
+                    <div style={{fontSize:20, fontWeight:700, color:'#a78bfa'}}>{goal.studyDayTarget}</div>
+                  </div>
+                </div>
+
+                <button className="btn-primary" onClick={()=>setShowGoal(true)} style={{width:'100%'}}>Update Goal</button>
+              </div>
+
+              {/* Courses */}
+              <div className="card" style={{padding:18, flex:1}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+                  <span style={{fontSize:13.5, fontWeight:600, color:'#e2e8f0'}}>📖 Courses</span>
+                  <span style={{fontSize:11.5, color:'#4b5563'}}>{Object.keys(courseBD).length} covered</span>
+                </div>
+                {Object.keys(courseBD).length > 0 ? (
+                  <>
+                    <div style={{position:'relative'}}>
+                      <DonutChart data={courseBD} />
+                      <div style={{position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none'}}>
+                        <div style={{textAlign:'center'}}>
+                          <div style={{fontSize:22, fontWeight:700, color:'#e2e8f0'}}>{fmtMins(todayMins)}</div>
+                          <div style={{fontSize:10.5, color:'#4b5563'}}>total</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{display:'flex', flexWrap:'wrap', gap:'6px 12px', marginTop:14}}>
+                      {Object.entries(courseBD).sort((a,b)=>b[1]-a[1]).map(([c,m],i)=>(
+                        <div key={c} style={{display:'flex', alignItems:'center', gap:5, fontSize:11.5}}>
+                          <div style={{width:8, height:8, borderRadius:2, background:COURSE_COLORS[i%COURSE_COLORS.length], flexShrink:0}} />
+                          <span style={{color:'#94a3b8'}}>{c}</span>
+                          <span style={{color:'#e2e8f0', fontWeight:600}}>{fmtMins(m)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{textAlign:'center', padding:'32px 0', color:'#374151'}}>
+                    <div style={{fontSize:36, marginBottom:10}}>📚</div>
+                    <div style={{fontSize:13, color:'#4b5563'}}>No study sessions yet.</div>
+                    <div style={{fontSize:12, color:'#374151', marginTop:4}}>Log a session to see course breakdown.</div>
+                  </div>
+                )}
+              </div>
+              {/* Productivity Calendar */}
+              <div className="card" style={{padding:18}}>
+
+                {(() => {
+
+                  const [calendarDate, setCalendarDate] = React.useState(new Date());
+
+                  const year = calendarDate.getFullYear();
+                  const month = calendarDate.getMonth();
+
+                  const firstDay = new Date(year, month, 1);
+                  const lastDay = new Date(year, month + 1, 0);
+
+                  const startDay = (firstDay.getDay() + 6) % 7;
+                  const totalDays = lastDay.getDate();
+
+                  const monthName = calendarDate.toLocaleString('default', {
+                    month:'long'
+                  });
+
+                  const cells = [];
+
+                  for(let i=0; i<startDay; i++) {
+                    cells.push(null);
+                  }
+
+                  for(let d=1; d<=totalDays; d++) {
+                    cells.push(new Date(year, month, d));
+                  }
+
+                  const getStars = (mins) => {
+                    if(mins >= goalMins) return 5;
+                    if(mins >= goalMins*0.8) return 4;
+                    if(mins >= goalMins*0.6) return 3;
+                    if(mins >= goalMins*0.4) return 2;
+                    if(mins > 0) return 1;
+                    return 0;
+                  };
+
+                  const getBg = (stars) => {
+                    return (
+                      stars===5 ? '#22c55e' :
+                      stars===4 ? '#84cc16' :
+                      stars===3 ? '#eab308' :
+                      stars===2 ? '#f97316' :
+                      stars===1 ? '#ef4444' :
+                      '#0f172a'
+                    );
+                  };
+
+                  return (
+                    <>
+                      {/* Header */}
+                      <div style={{
+                        display:'flex',
+                        justifyContent:'space-between',
+                        alignItems:'center',
+                        marginBottom:18
+                      }}>
+
+                        <div>
+                          <div style={{
+                            fontSize:14,
+                            fontWeight:700,
+                            color:'#e2e8f0'
+                          }}>
+                             Calendar view
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display:'flex',
+                          alignItems:'center',
+                          gap:10
+                        }}>
+
+                          <button
+                            className="btn-ghost"
+                            style={{padding:'5px 10px'}}
+                            onClick={()=>{
+                              const d = new Date(calendarDate);
+                              d.setMonth(d.getMonth()-1);
+                              setCalendarDate(d);
+                            }}
+                          >
+                            ←
+                          </button>
+
+                          <div style={{
+                            minWidth:140,
+                            textAlign:'center',
+                            fontSize:13,
+                            fontWeight:600,
+                            color:'#e2e8f0'
+                          }}>
+                            {monthName} {year}
+                          </div>
+
+                          <button
+                            className="btn-ghost"
+                            style={{padding:'5px 10px'}}
+                            onClick={()=>{
+                              const d = new Date(calendarDate);
+                              d.setMonth(d.getMonth()+1);
+                              setCalendarDate(d);
+                            }}
+                          >
+                            →
+                          </button>
+
+                        </div>
+                      </div>
+
+                      {/* Week Names */}
+                      <div style={{
+                        display:'grid',
+                        gridTemplateColumns:'repeat(7,1fr)',
+                        gap:8,
+                        marginBottom:8
+                      }}>
+                        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(day=>(
+                          <div
+                            key={day}
+                            style={{
+                              textAlign:'center',
+                              fontSize:11,
+                              color:'#64748b',
+                              fontWeight:600
+                            }}
+                          >
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Calendar Grid */}
+                      <div style={{
+                        display:'grid',
+                        gridTemplateColumns:'repeat(7,1fr)',
+                        gap:8
+                      }}>
+                        {cells.map((dateObj,idx)=>{
+
+                          if(!dateObj){
+                            return (
+                              <div
+                                key={idx}
+                                style={{
+                                  aspectRatio:'1',
+                                  borderRadius:10
+                                }}
+                              />
+                            );
+                          }
+                          
+                          const ds = dateObj.toLocaleDateString('en-CA');
+                          const isRestDay = acts.some(
+                            a =>
+                              a.date === ds &&
+                              a.type === 'Rest Day'
+                          );
+                          const mins = minsForDate(acts, ds);
+
+                          const stars = getStars(mins);
+
+                          const bg = isRestDay ? '#6366f1' : getBg(stars);
+
+                          const isToday = ds === todayStr();
+
+                          return (
+                            <div
+                              key={ds}
+                              title={`${dateObj.toDateString()}
+                                ${stars}★ Productivity
+                                ${fmtMins(mins)} studied`}
+                              style={{
+                                aspectRatio:'1',
+                                borderRadius:12,
+                                background:bg,
+                                border:isToday
+                                  ? '2px solid #60a5fa'
+                                  : '1px solid #1e2d40',
+                                display:'flex',
+                                flexDirection:'column',
+                                alignItems:'center',
+                                justifyContent:'center',
+                                cursor:'pointer',
+                                transition:'all 0.18s ease',
+                                position:'relative'
+                              }}
+                              onMouseEnter={(e)=>{
+                                e.currentTarget.style.transform='scale(1.06)';
+                              }}
+                              onMouseLeave={(e)=>{
+                                e.currentTarget.style.transform='scale(1)';
+                              }}
+                            >
+
+                              <div style={{
+                                fontSize:13,
+                                fontWeight:700,
+                                color:'#fff'
+                              }}>
+                                {dateObj.getDate()}
+                              </div>
+
+                              <div style={{
+                                fontSize:9,
+                                marginTop:4,
+                                color:'rgba(255,255,255,0.85)'
+                              }}>
+                                {isRestDay? '🦉': '★'.repeat(stars)}
+                              </div>
+
+                            </div>
+                          );
+
+                        })}
+                      </div>
+
+                      {/* Legend */}
+                      <div style={{
+                        display:'flex',
+                        gap:12,
+                        marginTop:16,
+                        flexWrap:'wrap',
+                        fontSize:11
+                      }}>
+                        {[
+                          ['#22c55e','Excellent'],
+                          ['#84cc16','Great'],
+                          ['#eab308','Good'],
+                          ['#f97316','Low'],
+                          ['#ef4444','Very Low'],
+                          ['#0f172a','No Study'],
+                        ].map(([c,l])=>(
+                          <div
+                            key={l}
+                            style={{
+                              display:'flex',
+                              alignItems:'center',
+                              gap:6
+                            }}
+                          >
+                            <div style={{
+                              width:11,
+                              height:11,
+                              borderRadius:4,
+                              background:c
+                            }} />
+
+                            <span style={{color:'#94a3b8'}}>
+                              {l}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                    </>
+                  );
+
+                })()}
+
+              </div>
+            </div>
+
+            {/* ═══ COLUMN 3 ═══ */}
+            <div style={{display:'flex', flexDirection:'column', gap:16}}>
+
+              {/* Study Days */}
+              <div className="card" style={{padding:18}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+                  <span style={{fontSize:13.5, fontWeight:600, color:'#e2e8f0'}}>📅 Study Days</span>
+                  <span style={{fontSize:13, color:'#3b82f6', fontWeight:700}}>{uniqueDays} / {goal.studyDayTarget}</span>
+                </div>
+                <div style={{display:'flex', gap:4, marginBottom:14}}>
+                  {['insights','pace','exams'].map(t=>(
+                    <button key={t} className={`tab-btn ${daysTab===t?'active':''}`} onClick={()=>setDaysTab(t)} style={{flex:1}}>
+                      {t.charAt(0).toUpperCase()+t.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                {daysTab==='insights' && (
+                  <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+                    {[
+                      ['Active days', `${uniqueDays} / ${goal.studyDayTarget}`, '#3b82f6', `${Math.round(uniqueDays/Math.max(1,goal.studyDayTarget)*100)}% done`],
+                      ['Best streak', streak + ' days', '#f97316', 'current streak'],
+                      ['Daily avg', fmtMins(uniqueDays>0?Math.round(totalMins/uniqueDays):0), '#a78bfa', 'active days only'],
+                      ['Days left', daysLeft, daysLeft<30?'#ef4444':daysLeft<90?'#f59e0b':'#22c55e', 'to exam'],
+                    ].map(([l,v,c,sub])=>(
+                      <div key={l} className="mini-stat">
+                        <div style={{fontSize:10.5, color:'#4b5563', marginBottom:3}}>{l}</div>
+                        <div style={{fontSize:19, fontWeight:700, color:c, lineHeight:1.2}}>{v}</div>
+                        <div style={{fontSize:10, color:'#374151', marginTop:2}}>{sub}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {daysTab==='pace' && (
+                  <div style={{display:'flex', flexDirection:'column', gap:10}}>
+                    {[
+                      ['Required pace', daysLeft>0?`${fmtMins(Math.ceil((goal.studyDayTarget-uniqueDays)/Math.max(1,daysLeft)*goalMins))} / day`:'—', '#f59e0b'],
+                      ['Current pace', uniqueDays>0?`${fmtMins(Math.round(totalMins/Math.max(1,uniqueDays)))} / day`:'—', '#22c55e'],
+                      // ['Study days pct', `${Math.round(uniqueDays/Math.max(1,goal.studyDayTarget)*100)}%`, '#3b82f6'],
+                      ['Goal completion', `${dayPct}% today`, '#a78bfa'],
+                    ].map(([l,v,c])=>(
+                      <div key={l} className="mini-stat" style={{display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 12px'}}>
+                        <span style={{fontSize:12, color:'#64748b'}}>{l}</span>
+                        <span style={{fontSize:15, fontWeight:700, color:c}}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {daysTab==='exams' && (
+                  <div style={{display:'flex', flexDirection:'column', gap:8}}>
+                    {exams.map(({name,date})=>{
+                      const d = Math.max(0, Math.ceil((new Date(date)-new Date())/864e5));
+                      const color = d<30?'#ef4444':d<90?'#f59e0b':'#22c55e';
+                      return (
+                        <div key={name} style={{background:'#0f172a', borderRadius:8, padding:'11px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', border:'1px solid #1e2d40'}}>
+                          <div>
+                            <div style={{fontSize:12.5, fontWeight:500, color:'#e2e8f0'}}>{name}</div>
+                            <div style={{fontSize:11, color:'#4b5563', marginTop:2}}>{new Date(date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</div>
+                          </div>
+                          <div style={{textAlign:'right'}}>
+                            <div style={{fontSize:20, fontWeight:800, color, lineHeight:1}}>{d}</div>
+                            <div style={{fontSize:10, color:'#4b5563'}}>days</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Recent Activities */}
+              <div className="card" style={{padding:18, flex:1, display:'flex', flexDirection:'column'}}>
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14}}>
+                  <span style={{fontSize:13.5, fontWeight:600, color:'#e2e8f0'}}>📋 Activities</span>
+                  <button className="btn-ghost" onClick={()=>setShowAdd(true)} style={{padding:'5px 10px', fontSize:12}}>+ Add</button>
+                </div>
+
+                {recent.length===0 ? (
+                  <div style={{flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'28px 0'}}>
+                    <div style={{fontSize:34, marginBottom:10}}>📝</div>
+                    <div style={{fontSize:13, color:'#4b5563', textAlign:'center', lineHeight:1.6}}>
+                      No sessions logged yet.<br />
+                      <span style={{color:'#3b82f6', cursor:'pointer'}} onClick={()=>setShowAdd(true)}>Start your first session →</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:7}}>
+                    {recent.map(a=>{
+                      const typeColor = {Study:'#3b82f6','Revision':'#8b5cf6','Test Practice':'#ef4444','Note-Making':'#22c55e','Mock Interview':'#f59e0b','Group Discussion':'#06b6d4'}[a.type]||'#3b82f6';
+                      return (
+                        <div key={a.id} className="activity-row">
+                          <div style={{width:8, height:8, borderRadius:'50%', flexShrink:0, background:typeColor}} />
+                          <div style={{flex:1, minWidth:0}}>
+                            <div style={{fontSize:12.5, fontWeight:500, color:'#e2e8f0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+                              {a.course}{a.subject?` · ${a.subject}`:''}
+                            </div>
+                            <div style={{fontSize:11, color:'#374151', marginTop:2}}>
+                              {a.date} {a.startTime && `· ${a.startTime}`}
+                              {a.type && <span style={{color:typeColor, marginLeft:4, opacity:0.8}}>· {a.type}</span>}
+                            </div>
+                          </div>
+                          <span style={{fontSize:12, fontWeight:700, color:'#22c55e', flexShrink:0}}>{fmtMins(a.duration)}</span>
+                          <button className="delete-btn" onClick={()=>delActivity(a.id)} title="Delete">×</button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Firebase setup notice */}
+          {!db && (
+            <div style={{
+              marginTop:18, padding:'12px 18px', background:'rgba(59,130,246,0.07)',
+              border:'1px solid rgba(59,130,246,0.2)', borderRadius:10,
+              fontSize:12.5, color:'#93c5fd', display:'flex', alignItems:'center', gap:10,
+            }}>
+              <span style={{fontSize:18}}>☁️</span>
+              <span><strong>Local mode active.</strong> Data is saved in your browser. To sync across devices, add your Firebase config to the <code>FIREBASE_CONFIG</code> object at the top of this file, then deploy to Firebase Hosting.</span>
+            </div>
+          )}
+        </main>
+      </div>
+
+      {showAdd && <AddModal onClose={()=>setShowAdd(false)} onSave={addActivity} />}
+      {showGoal && <GoalModal goal={goal} onClose={()=>setShowGoal(false)} onSave={saveGoal} />}
+      {toast && <Toast msg={toast} />}
+    </div>
+  );
+};
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

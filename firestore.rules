@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Activities collection — authenticated users can read/write
+    match /activities/{docId} {
+      allow read, write: if true; // For personal use; tighten for multi-user apps
+    }
+    // Goals collection — authenticated users can read/write
+    match /goals/{docId} {
+      allow read, write: if true;
+    }
+  }
+}
