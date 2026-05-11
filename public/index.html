@@ -275,20 +275,23 @@ const fmtMins = (m) => {
 const fmtSecs = (s) => {
   const h = Math.floor(s/3600), m = Math.floor((s%3600)/60), sec = s%60;
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
-};
-const todayStr = () => new Date().toISOString().split('T')[0];
+};// NEW — uses local date, not UTC
+const localDateStr = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const todayStr = () => localDateStr(new Date());
 const weekDatesArr = () => {
   const now = new Date(), dow = now.getDay();
   const mon = new Date(now); mon.setDate(now.getDate() - ((dow+6)%7));
-  return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return d.toISOString().split('T')[0]; });
+  return Array.from({length:7}, (_,i) => { const d=new Date(mon); d.setDate(mon.getDate()+i); return localDateStr(d); });
 };
-const minsForDate = (acts, date) => acts.filter(a=>a.date===date).reduce((s,a)=>s+(parseInt(a.duration)||0),0);
 const calcStreak = (acts) => {
   const dates = new Set(acts.map(a=>a.date));
   let streak=0, d=new Date();
-  while(dates.has(d.toISOString().split('T')[0])) { streak++; d.setDate(d.getDate()-1); }
+  while(dates.has(localDateStr(d))) { streak++; d.setDate(d.getDate()-1); }
   return streak;
 };
+
+const minsForDate = (acts, date) => acts.filter(a=>a.date===date).reduce((s,a)=>s+(parseInt(a.duration)||0),0);
+
 const genId = () => `${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
 
 // ═══════════════════════════════════════════
