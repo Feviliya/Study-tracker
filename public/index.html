@@ -6,11 +6,12 @@
   <title>UPSC Study Tracker</title>
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.18.13/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; }
@@ -213,7 +214,8 @@ textarea {
 <body>
 <div id="root"></div>
 <script type="text/babel">
-
+  
+window.onload = function() {
 // ═══════════════════════════════════════════
 //   FIREBASE CONFIG — Replace to enable sync
 // ═══════════════════════════════════════════
@@ -245,8 +247,9 @@ try {
 // ═══════════════════════════════════════════
 //   CONSTANTS
 // ═══════════════════════════════════════════
-const COURSES = ['Polity','History','Geography','Economics','Science & Tech','Environment','Current Affairs','Sociology','Ethics','CSAT','Art & Culture'];
+const COURSES = ['Mock Test','Polity','History','Geography','Economics','Science & Tech','Environment','Current Affairs','Sociology','Ethics','CSAT','Art & Culture'];
 const SUBJECTS_MAP = {
+  'Mock Test': ['Prelims', 'Mains', 'CSAT'],
   'Polity': ['Indian Constitution','Parliament','Judiciary','Executive','Federalism','Local Govt','Elections','Emergency Provisions'],
   'History': ['Ancient India','Medieval India','Modern India','World History','Post-Independence'],
   'Geography': ['Physical Geography','Indian Geography','World Geography','Economic Geography','Human Geography'],
@@ -259,8 +262,8 @@ const SUBJECTS_MAP = {
   'CSAT': ['Reading Comprehension','Quantitative Aptitude','Logical Reasoning','Data Interpretation'],
   'Art & Culture': ['Architecture','Literature','Music & Dance','Paintings','Festivals','Philosophy'],
 };
-const ACTIVITY_TYPES = ['Study','Revision','Test Practice','Note-Making','Mock Interview','Group Discussion'];
-const COURSE_COLORS = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316','#a78bfa'];
+const ACTIVITY_TYPES = ['Study','Revision','Test Practice','Note-Making','Reading'];
+const COURSE_COLORS = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ef4444','#06b6d4','#ec4899','#84cc16','#f97316'];
 
 // ═══════════════════════════════════════════
 //   HELPERS
@@ -605,7 +608,162 @@ const TimerWidget = ({onLog}) => {
     </div>
   );
 };
+const ScheduleBoard = () => {
+  const PERIODS = [
+    { key: 'week',  label: 'This Week',  color: '#3b82f6' },
+    { key: 'month', label: 'This Month', color: '#8b5cf6' },
+    { key: 'later', label: 'Backlog',    color: '#64748b' },
+  ];
 
+  const [tasks, setTasks] = React.useState(() =>
+    JSON.parse(localStorage.getItem('upsc_schedule') || '[]')
+  );
+  const [input, setInput]     = React.useState({ week:'', month:'', later:'' });
+  const [subject, setSubject] = React.useState({ week:'Polity', month:'Polity', later:'Polity' });
+
+  const save = (updated) => {
+    setTasks(updated);
+    localStorage.setItem('upsc_schedule', JSON.stringify(updated));
+    // uCol(user.uid, 'schedule').doc(item.id).set(item)
+  };
+
+  const addTask = (period) => {
+    const text = input[period].trim();
+    if (!text) return;
+    save([...tasks, { id: genId(), text, subject: subject[period], period, done: false, date: localDateStr(new Date()) }]);
+    setInput(p => ({ ...p, [period]: '' }));
+  };
+
+  const toggle = (id) => save(tasks.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  const remove = (id) => save(tasks.filter(t => t.id !== id));
+
+  const subjectColors = {
+    'Polity':'#3b82f6','History':'#f59e0b','Geography':'#22c55e',
+    'Economics':'#8b5cf6','Science & Tech':'#06b6d4','Environment':'#84cc16',
+    'Current Affairs':'#f97316','Ethics':'#ec4899','CSAT':'#a78bfa','Art & Culture':'#ef4444',
+  };
+
+  return (
+    <div className="card" style={{ padding: 18, marginTop:15 }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <span style={{ fontSize:13.5, fontWeight:600, color:'#e2e8f0' }}>🗓 Study Planner</span>
+        <span style={{ fontSize:11, color:'#4b5563' }}>
+          {tasks.filter(t=>t.done).length} / {tasks.length} done
+        </span>
+      </div>
+
+      {/* Columns */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+        {PERIODS.map(({ key, label, color }) => {
+          const col   = tasks.filter(t => t.period === key);
+          const done  = col.filter(t => t.done).length;
+          return (
+            <div key={key} style={{
+              background:'#0f172a', borderRadius:10, padding:12,
+              border:`1px solid ${color}28`, display:'flex', flexDirection:'column', gap:8,
+              minHeight: 200,
+            }}>
+              {/* Column header */}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                <span style={{ fontSize:12, fontWeight:600, color }}>{label}</span>
+                <span style={{ fontSize:10, color:'#374151', background:'#1e2d40', borderRadius:10, padding:'1px 7px' }}>
+                  {done}/{col.length}
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              <div className="progress-bar" style={{ height:3, marginBottom:4 }}>
+                <div className="progress-fill" style={{
+                  width: col.length ? `${Math.round(done/col.length*100)}%` : '0%',
+                  background: color,
+                }} />
+              </div>
+
+              {/* Task list */}
+              <div style={{ flex:1, display:'flex', flexDirection:'column', gap:6, overflowY:'auto', maxHeight:220 }}>
+                {col.length === 0 && (
+                  <div style={{ fontSize:11, color:'#374151', textAlign:'center', paddingTop:16 }}>
+                    No topics yet
+                  </div>
+                )}
+                {col.map(task => (
+                  <div key={task.id} style={{
+                    display:'flex', alignItems:'flex-start', gap:7,
+                    background:'#1a2035', borderRadius:8, padding:'8px 10px',
+                    border:'1px solid #1e2d40', opacity: task.done ? 0.55 : 1,
+                    transition:'opacity 0.2s',
+                  }}>
+                    {/* Checkbox */}
+                    <div onClick={() => toggle(task.id)} style={{
+                      width:16, height:16, borderRadius:4, flexShrink:0, marginTop:1, cursor:'pointer',
+                      background: task.done ? color : 'transparent',
+                      border: `1.5px solid ${task.done ? color : '#374151'}`,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:10, color:'#fff', transition:'all 0.15s',
+                    }}>
+                      {task.done ? '✓' : ''}
+                    </div>
+                    {/* Text */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{
+                        fontSize:12, color:'#e2e8f0', lineHeight:1.4,
+                        textDecoration: task.done ? 'line-through' : 'none',
+                        wordBreak:'break-word',
+                      }}>
+                        {task.text}
+                      </div>
+                      <div style={{
+                        fontSize:10, marginTop:3, display:'inline-block',
+                        background: `${subjectColors[task.subject] || '#64748b'}22`,
+                        color: subjectColors[task.subject] || '#64748b',
+                        borderRadius:4, padding:'1px 5px',
+                      }}>
+                        {task.subject}
+                      </div>
+                    </div>
+                    {/* Delete */}
+                    <button className="delete-btn" onClick={() => remove(task.id)}
+                      style={{ marginTop:1, flexShrink:0 }}>×</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add input */}
+              <div style={{ borderTop:'1px solid #1e2d40', paddingTop:8, display:'flex', flexDirection:'column', gap:6 }}>
+                <select
+                  value={subject[key]}
+                  onChange={e => setSubject(p => ({ ...p, [key]: e.target.value }))}
+                  style={{ fontSize:11, padding:'5px 8px' }}
+                >
+                  {COURSES.map(c => <option key={c}>{c}</option>)}
+                </select>
+                <div style={{ display:'flex', gap:5 }}>
+                  <input
+                    type="text"
+                    value={input[key]}
+                    onChange={e => setInput(p => ({ ...p, [key]: e.target.value }))}
+                    onKeyDown={e => e.key === 'Enter' && addTask(key)}
+                    placeholder="Add topic…"
+                    style={{ fontSize:11, padding:'6px 8px', flex:1 }}
+                  />
+                  <button
+                    onClick={() => addTask(key)}
+                    style={{
+                      background: color, border:'none', borderRadius:7,
+                      color:'#fff', fontWeight:700, fontSize:14,
+                      padding:'0 10px', cursor:'pointer', flexShrink:0,
+                    }}
+                  >+</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 // ═══════════════════════════════════════════
 //   MAIN APP
 // ═══════════════════════════════════════════
@@ -664,6 +822,8 @@ React.useEffect(() => {
   (sum, a) => sum + (parseInt(a.duration) || 0),
   0
 );
+  const year = t.slice(0, 4);
+  const yearMins = acts.filter(a => a.date.startsWith(year)).reduce((s, a) => s + (parseInt(a.duration) || 0), 0);
   const weekMins  = week.reduce((s,d)=>s+minsForDate(acts,d),0);
   const month = t.slice(0,7);
   const monthMins = acts.filter(a=>a.date.startsWith(month)).reduce((s,a)=>s+(parseInt(a.duration)||0),0);
@@ -676,7 +836,6 @@ React.useEffect(() => {
   const daysLeft = Math.max(0, Math.ceil((targetD-new Date())/(864e5)));
   const elapsed = Math.min(100, Math.round((1-daysLeft/365)*100));
   const courseBD = todayActivities.reduce((acc, a) => {
-
   if (a.course) {
     acc[a.course] =
       (acc[a.course] || 0) +
@@ -729,8 +888,7 @@ React.useEffect(() => {
 }, []);
   const exams = [
     {name:'UPSC Prelims 2027', date:'2027-05-23'},
-    {name:'UPSC Mains 2026',   date:'2027-09-21'},
-    {name:'Interview',          date:'2028-02-01'},
+    {name:'UPSC Mains 2027',   date:'2027-08-20'},
   ];
 
   const recent = todayActivities.slice(0,10);
@@ -843,6 +1001,15 @@ React.useEffect(() => {
             <span title="Days left to exam" style={{color: daysLeft<30?'#ef4444':daysLeft<90?'#f59e0b':'#4b5563'}}>
               ⏳ {daysLeft}d left
             </span>
+            <button
+              title="Open PDF Workbench"
+              className="btn-ghost"
+              onClick={() => {
+                window.location.href = "/pdfwork.html";
+              }}
+            >
+              📑
+            </button>
             <button className="btn-ghost" onClick={async () => {
 
   const today = todayStr();
@@ -975,14 +1142,14 @@ React.useEffect(() => {
               {/* Study Time */}
               <div className="card" style={{padding:18}}>
                 <div style={{display:'flex', gap:4, marginBottom:14}}>
-                  {['day','week','month','total'].map(t=>(
+                  {[].map(t=>(
                     <button key={t} className={`tab-btn ${statsTab===t?'active':''}`} onClick={()=>setStatsTab(t)}>
                       {t.charAt(0).toUpperCase()+t.slice(1)}
                     </button>
                   ))}
                 </div>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:14}}>
-                  {[['Today',fmtMins(todayMins),'#22c55e'],['Week',fmtMins(weekMins),'#3b82f6'],['Month',fmtMins(monthMins),'#a78bfa']].map(([l,v,c])=>(
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr 1fr ', gap:10, marginBottom:14}}>
+                  {[['Week',fmtMins(weekMins),'#3b82f6'],['Month',fmtMins(monthMins),'#a78bfa'],['Year',fmtMins(yearMins),'#22c55e']].map(([l,v,c])=>(
                     <div key={l} className="mini-stat">
                       <div style={{fontSize:10.5, color:'#4b5563', marginBottom:4, letterSpacing:0.3}}>{l}</div>
                       <div style={{fontSize:20, fontWeight:700, color:c}}>{v}</div>
@@ -999,6 +1166,7 @@ React.useEffect(() => {
                   </div>
                 </div>
               </div>
+              
 
               {/* Streaks */}
               <div className="card" style={{padding:18}}>
@@ -1539,8 +1707,9 @@ React.useEffect(() => {
                 )}
               </div>
             </div>
+            
           </div>
-
+<ScheduleBoard />
           {/* Firebase setup notice */}
           {!db && (
             <div style={{
@@ -1564,6 +1733,7 @@ React.useEffect(() => {
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(<App />);
+}
 </script>
 </body>
 </html>

@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PDF Workbench</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1f5;--sf:#fff;--tx:#18202e;--mu:#5d6778;--ac:#0f766e;--on:#fff;--ln:#d5dbe4;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10151e;--sf:#19212d;--tx:#e8ecf3;--mu:#97a2b5;--ac:#2dd4bf;--on:#08201d;--ln:#2b3546;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#10151e;--sf:#19212d;--tx:#e8ecf3;--mu:#97a2b5;--ac:#2dd4bf;--on:#08201d;--ln:#2b3546;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:400 15px/1.5 "Bricolage Grotesque",system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:26px;margin:0 0 2px;letter-spacing:-.02em}
+.sub{color:var(--mu);margin:0 0 18px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--ln);margin-bottom:16px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;color:var(--mu);font:600 15px inherit;font-family:inherit;padding:10px 14px;cursor:pointer;white-space:nowrap}
+.tabs button.on{color:var(--tx);border-color:var(--ac)}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn,button.b{background:var(--ac);color:var(--on);border:0;border-radius:7px;padding:8px 13px;font:600 14px inherit;font-family:inherit;cursor:pointer;display:inline-block}
+.btn.g,button.g{background:transparent;color:var(--tx);border:1px solid var(--ln)}
+button:disabled{opacity:.45;cursor:default}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+input[type=number]{width:62px;padding:7px;border:1px solid var(--ln);border-radius:7px;background:var(--bg);color:var(--tx);font:inherit}
+input[type=text]{padding:7px;border:1px solid var(--ln);border-radius:7px;background:var(--bg);color:var(--tx);font:inherit;min-width:120px}
+input[type=range]{accent-color:var(--ac)}
+.mu{color:var(--mu);font-size:13px}
+.strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px}
+.th{flex:none;border:2px solid var(--ln);border-radius:8px;padding:6px;text-align:center;background:var(--bg)}
+.th.on{border-color:var(--ac)}
+.th canvas{display:block;margin:0 auto 4px;cursor:pointer;max-height:130px;background:#fff}
+.th button{background:none;border:0;color:var(--tx);cursor:pointer;font-size:14px;padding:2px 5px}
+.sw{width:26px;height:26px;border-radius:50%;border:3px solid transparent;cursor:pointer;padding:0}
+.sw.on{border-color:var(--ac);box-shadow:0 0 0 2px var(--sf) inset}
+.stage{position:relative;display:inline-block;max-width:100%;line-height:0;border:1px solid var(--ln);background:#fff}
+.stage canvas{max-width:100%;height:auto}
+.stage canvas+canvas{position:absolute;inset:0;touch-action:none;cursor:crosshair}
+.wrap{overflow:auto;max-width:100%}
+.err{background:#fde8e8;color:#8a1c1c;border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.busy{color:var(--ac);font-weight:600;margin-bottom:10px}
+.modal{position:fixed;inset:0;background:rgba(8,12,20,.72);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.pane{background:var(--sf);border-radius:12px;max-width:760px;width:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+.pane>div{padding:14px}
+.view{overflow:auto;flex:1;background:var(--bg);display:flex;flex-direction:column;align-items:center;gap:10px}
+.view canvas{max-width:100%;height:auto;background:#fff}
+.view pre{white-space:pre-wrap;align-self:stretch;margin:0}
+</style></head>
+<body><div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/htm@3.1.1/dist/htm.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<script>
+const {useState,useEffect,useRef}=React;
+const html=htm.bind(React.createElement);
+const {PDFDocument,degrees,StandardFonts}=PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ---------- helpers ---------- */
+const kb=n=>n>1048576?(n/1048576).toFixed(2)+' MB':(n/1024).toFixed(1)+' KB';
+const tb=(c,t,q)=>new Promise(r=>c.toBlob(r,t,q));
+const loadImg=f=>new Promise((r,j)=>{const i=new Image();i.onload=()=>r(i);i.onerror=j;i.src=URL.createObjectURL(f)});
+const openPdf=d=>pdfjsLib.getDocument({data:d instanceof Uint8Array?d.slice():d}).promise;
+async function drawPage(pdf,n,s,c){const p=await pdf.getPage(n),v=p.getViewport({scale:s});c.width=v.width;c.height=v.height;await p.render({canvasContext:c.getContext('2d'),viewport:v}).promise}
+// largest value v in (0,1] whose output stays within target bytes
+async function fit(make,target){let lo=.05,hi=1,best=await make(lo);for(let i=0;i<7;i++){const m=(lo+hi)/2,b=await make(m);if(b.size<=target){best=b;lo=m}else hi=m}return best}
+
+/* ---------- conversions ---------- */
+async function pdfToDocx(f){
+  const pdf=await openPdf(await f.arrayBuffer()),ps=[];
+  for(let n=1;n<=pdf.numPages;n++){
+    const t=await(await pdf.getPage(n)).getTextContent();let line='',y=null;
+    for(const it of t.items){if(y!==null&&Math.abs(it.transform[5]-y)>2){ps.push(line);line=''}line+=it.str;y=it.transform[5]}
+    ps.push(line);if(n<pdf.numPages)ps.push('\f');
+  }
+  const esc=s=>s.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const body=ps.map(p=>p==='\f'?'<w:p><w:r><w:br w:type="page"/></w:r></w:p>':`<w:p><w:r><w:t xml:space="preserve">${esc(p)}</w:t></w:r></w:p>`).join('');
+  const h='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',z=new JSZip();
+  z.file('[Content_Types].xml',h+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+  z.file('_rels/.rels',h+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  z.file('word/document.xml',h+`<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body}</w:body></w:document>`);
+  return{blob:await z.generateAsync({type:'blob'}),name:f.name.replace(/\.pdf$/i,'')+'.docx'};
+}
+async function docxToPdf(f){
+  const{value}=await mammoth.extractRawText({arrayBuffer:await f.arrayBuffer()});
+  const d=await PDFDocument.create(),ft=await d.embedFont(StandardFonts.Helvetica);
+  let pg=d.addPage([595,842]),y=792,line='';
+  const flush=()=>{if(y<60){pg=d.addPage([595,842]);y=792}pg.drawText(line,{x:50,y,size:11,font:ft});y-=15;line=''};
+  for(const para of value.replace(/\t/g,' ').replace(/[^\x0a\x20-\x7e\xa0-\xff]/g,'?').split('\n')){
+    for(const w of para.split(' ')){const t=line?line+' '+w:w;if(line&&ft.widthOfTextAtSize(t,11)>495){flush();line=w}else line=t}
+    flush();
+  }
+  return{blob:new Blob([await d.save()],{type:'application/pdf'}),name:f.name.replace(/\.docx$/i,'')+'.pdf'};
+}
+async function imgsToPdf(fs){
+  const d=await PDFDocument.create();
+  for(const f of fs){
+    let im;const u=new Uint8Array(await f.arrayBuffer());
+    if(f.type==='image/jpeg')im=await d.embedJpg(u);
+    else if(f.type==='image/png')im=await d.embedPng(u);
+    else{const i=await loadImg(f),c=document.createElement('canvas');c.width=i.width;c.height=i.height;c.getContext('2d').drawImage(i,0,0);im=await d.embedPng(c.toDataURL())}
+    d.addPage([im.width,im.height]).drawImage(im,{x:0,y:0,width:im.width,height:im.height});
+  }
+  return{blob:new Blob([await d.save()],{type:'application/pdf'}),name:'images.pdf'};
+}
+async function pdfToImgs(f){
+  const pdf=await openPdf(await f.arrayBuffer()),bs=[];
+  for(let n=1;n<=pdf.numPages;n++){const c=document.createElement('canvas');await drawPage(pdf,n,2,c);bs.push(await tb(c,'image/png'))}
+  if(bs.length===1)return{blob:bs[0],name:'page-1.png'};
+  const z=new JSZip();bs.forEach((b,i)=>z.file(`page-${i+1}.png`,b));
+  return{blob:await z.generateAsync({type:'blob'}),name:'pages.zip'};
+}
+
+/* ---------- editor ---------- */
+function Thumb({pdf,n}){const r=useRef();useEffect(()=>{drawPage(pdf,n,.25,r.current).catch(()=>{})},[pdf,n]);return html`<canvas ref=${r}/>`}
+
+function Annot({pdf,page,onApply}){
+  const base=useRef(),ov=useRef(),ink=useRef(null),objs=useRef([]),hist=useRef([]),pend=useRef(null),st=useRef({}),drag=useRef(null);
+  if(!ink.current)ink.current=document.createElement('canvas');
+  const [tool,setTool]=useState('pen'),[col,setCol]=useState('#111111'),[txt,setTxt]=useState(''),[ts,setTs]=useState(36),[iw,setIw]=useState(30),[sel,setSel]=useState(-1),[,tick]=useState(0);
+  st.current={...st.current,tool,col,txt,ts,iw,sel};
+  const box=(o,x)=>{if(o.k==='i')return[o.x,o.y,o.w,o.img.height*o.w/o.img.width];x.font=`600 ${o.s}px sans-serif`;return[o.x,o.y-o.s,x.measureText(o.text).width,o.s*1.2]};
+  const draw=showSel=>{const c=ov.current;if(!c||!c.width)return;const x=c.getContext('2d');x.clearRect(0,0,c.width,c.height);x.drawImage(ink.current,0,0);
+    objs.current.forEach((o,i)=>{
+      if(o.k==='i')x.drawImage(o.img,o.x,o.y,o.w,o.img.height*o.w/o.img.width);
+      else{x.fillStyle=o.col;x.font=`600 ${o.s}px sans-serif`;x.fillText(o.text,o.x,o.y)}
+      if(showSel&&i===st.current.sel){const[a,b,w,h]=box(o,x);x.save();x.strokeStyle='#0ea5e9';x.setLineDash([6,4]);x.lineWidth=2;x.strokeRect(a-3,b-3,w+6,h+6);x.restore()}
+    })};
+  useEffect(()=>draw(true));
+  useEffect(()=>{hist.current=[];objs.current=[];st.current.sel=-1;setSel(-1);(async()=>{const p=await pdf.getPage(page),v=p.getViewport({scale:1.5});
+    for(const c of[base.current,ov.current,ink.current]){c.width=v.width;c.height=v.height}
+    await p.render({canvasContext:base.current.getContext('2d'),viewport:v}).promise;tick(n=>n+1)})().catch(()=>{})},[pdf,page]);
+  const snap=()=>{const k=ink.current;hist.current.push({i:k.getContext('2d').getImageData(0,0,k.width,k.height),o:objs.current.map(o=>({...o}))})};
+  const undo=()=>{const h=hist.current.pop();if(!h)return;ink.current.getContext('2d').putImageData(h.i,0,0);objs.current=h.o;pick(-1)};
+  const pick=k=>{st.current.sel=k;setSel(k);const o=objs.current[k];if(o&&o.k==='t'){setTxt(o.text);setCol(o.col)}tick(n=>n+1)};
+  const pos=e=>{const c=ov.current,r=c.getBoundingClientRect();return[(e.clientX-r.left)*c.width/r.width,(e.clientY-r.top)*c.height/r.height]};
+  const down=e=>{
+    const{tool,col,txt,ts,iw}=st.current,c=ov.current,x=c.getContext('2d'),[px,py]=pos(e);
+    if(tool==='text'){snap();objs.current.push({k:'t',x:px,y:py,s:ts,text:txt||'Text',col});pick(objs.current.length-1);setTool('select');return}
+    if(tool==='image'){const i=pend.current;if(!i)return;snap();const w=c.width*iw/100;objs.current.push({k:'i',img:i,x:px-w/2,y:py-i.height*w/i.width/2,w});pick(objs.current.length-1);setTool('select');return}
+    if(tool==='select'){let h=-1;
+      for(let k=objs.current.length-1;k>=0;k--){const[a,b,w,hh]=box(objs.current[k],x);if(px>=a&&px<=a+w&&py>=b&&py<=b+hh){h=k;break}}
+      pick(h);if(h>=0){c.setPointerCapture(e.pointerId);const o=objs.current[h];drag.current={dx:px-o.x,dy:py-o.y}}return}
+    snap();c.setPointerCapture(e.pointerId);st.current.d=true;const k=ink.current.getContext('2d');
+    k.strokeStyle=col;k.lineWidth=3;k.lineCap=k.lineJoin='round';k.beginPath();k.moveTo(px,py);k.lineTo(px+.1,py+.1);k.stroke();draw(true);
+  };
+  const move=e=>{const[px,py]=pos(e),d=drag.current;
+    if(d){if(!d.m){snap();d.m=true}const o=objs.current[st.current.sel];o.x=px-d.dx;o.y=py-d.dy;draw(true);return}
+    if(st.current.d){const k=ink.current.getContext('2d');k.lineTo(px,py);k.stroke();draw(true)}};
+  const up=()=>{st.current.d=false;drag.current=null};
+  useEffect(()=>{const h=e=>{
+    const it=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));if(!it)return;
+    const img=new Image();img.onload=()=>{pend.current=img;setTool('image')};img.src=URL.createObjectURL(it.getAsFile());
+  };window.addEventListener('paste',h);return()=>window.removeEventListener('paste',h)},[]);
+  const so=objs.current[sel],kind=so?so.k:(tool==='image'?'i':'t'),W=ov.current?ov.current.width:1;
+  const val=so?(so.k==='t'?so.s:Math.round(so.w/W*100)):(kind==='i'?iw:ts);
+  const setSize=v=>{if(so){if(so.k==='t')so.s=v;else so.w=W*v/100;tick(n=>n+1)}else if(kind==='i')setIw(v);else setTs(v)};
+  const setC=c=>{setCol(c);if(so&&so.k==='t'){so.col=c;tick(n=>n+1)}};
+  const setT=v=>{setTxt(v);if(so&&so.k==='t'){so.text=v||'Text';tick(n=>n+1)}};
+  const del=()=>{snap();objs.current.splice(sel,1);pick(-1)};
+  const apply=()=>{draw(false);const u=ov.current.toDataURL('image/png');draw(true);onApply(u)};
+  const T=(k,l)=>html`<button class=${'btn '+(tool===k?'':'g')} onClick=${()=>setTool(k)}>${l}</button>`;
+  const showSize=so||tool==='text'||tool==='image',showText=(so&&so.k==='t')||tool==='text';
+  return html`<div class="card">
+    <div class="row">
+      ${T('pen','Pen')}${T('text','Text')}${T('image','Image')}${T('select','Move / resize')}
+      ${['#111111','#1d4ed8','#dc2626','#16a34a'].map(c=>html`<button key=${c} aria-label=${c} class=${'sw '+(col===c?'on':'')} style=${{background:c}} onClick=${()=>setC(c)}/>`)}
+      <button class="btn g" onClick=${undo}>Undo</button>
+      <button class="btn" onClick=${apply}>Apply to page ${page}</button>
+    </div>
+    ${(showSize||showText)&&html`<div class="row" style=${{marginTop:10}}>
+      ${showText&&html`<input type="text" placeholder="Text to place" value=${txt} onInput=${e=>setT(e.target.value)}/>`}
+      ${showSize&&html`<label class="mu">${kind==='t'?'Font size':'Image width'} <input type="range" min=${kind==='t'?12:5} max=${kind==='t'?150:100} value=${val} onInput=${e=>setSize(+e.target.value)}/> ${val}${kind==='t'?'px':'%'}</label>`}
+      ${so&&html`<button class="btn g" onClick=${del}>Delete selected</button>`}
+    </div>`}
+    <p class="mu">${tool==='image'?(pend.current?'Click the page to place the pasted image. You can resize and drag it afterwards.':'Copy an image, then press Ctrl/Cmd+V here.'):tool==='text'?'Click the page to place text. You can resize and drag it afterwards.':tool==='select'?'Click a text or image to select it, then drag to move or use the size slider.':'Draw on the page, then apply to save it into the PDF.'}</p>
+    <div class="wrap"><div class="stage"><canvas ref=${base}/><canvas ref=${ov} onPointerDown=${down} onPointerMove=${move} onPointerUp=${up}/></div></div>
+  </div>`;
+}
+
+function Editor({run}){
+  const [bytes,setBytes]=useState(null),[pdf,setPdf]=useState(null),[sel,setSel]=useState(1),[a,setA]=useState(1),[b,setB]=useState(1);
+  const load=async u8=>{const d=await openPdf(u8);setBytes(u8);setPdf(d);setSel(s=>Math.min(s,d.numPages));setA(1);setB(d.numPages)};
+  const build=async ord=>{const src=await PDFDocument.load(bytes),o=await PDFDocument.create();
+    const ps=await o.copyPages(src,ord.map(x=>x.i));
+    ps.forEach((p,k)=>{if(ord[k].r)p.setRotation(degrees((p.getRotation().angle+ord[k].r)%360));o.addPage(p)});return o.save()};
+  const idx=async()=>(await PDFDocument.load(bytes)).getPageIndices().map(i=>({i,r:0}));
+  const edit=fn=>run('Updating pages',async()=>{await load(await build(fn(await idx())))});
+  const merge=fs=>run('Merging',async()=>{
+    const o=bytes?await PDFDocument.load(bytes):await PDFDocument.create();
+    for(const f of fs){const s=await PDFDocument.load(await f.arrayBuffer());(await o.copyPages(s,s.getPageIndices())).forEach(p=>o.addPage(p))}
+    await load(await o.save())});
+  const extract=()=>run('Splitting',async()=>{
+    const lo=Math.max(1,Math.min(a,b)),hi=Math.min(pdf.numPages,Math.max(a,b));
+    const ord=(await idx()).slice(lo-1,hi);return{blob:new Blob([await build(ord)],{type:'application/pdf'}),name:`pages-${lo}-${hi}.pdf`}});
+  const apply=url=>run('Applying',async()=>{
+    const d=await PDFDocument.load(bytes),pg=d.getPage(sel-1),{width,height}=pg.getSize();
+    pg.drawImage(await d.embedPng(url),{x:0,y:0,width,height});await load(await d.save())});
+  const pick=fn=>e=>{const fs=[...e.target.files];e.target.value='';if(fs.length)fn(fs)};
+  return html`<div>
+    <div class="card"><div class="row">
+      <label class="btn">Open PDF<input type="file" accept="application/pdf" hidden onChange=${pick(fs=>run('Opening',async()=>{await load(new Uint8Array(await fs[0].arrayBuffer()))}))}/></label>
+      <label class="btn g">Merge PDFs<input type="file" accept="application/pdf" multiple hidden onChange=${pick(merge)}/></label>
+      ${pdf&&html`<span class="mu">Split pages</span>
+        <input type="number" min="1" max=${pdf.numPages} value=${a} onInput=${e=>setA(+e.target.value)}/>
+        <span class="mu">to</span>
+        <input type="number" min="1" max=${pdf.numPages} value=${b} onInput=${e=>setB(+e.target.value)}/>
+        <button class="btn g" onClick=${extract}>Extract range</button>
+        <button class="btn" onClick=${()=>run('',async()=>({blob:new Blob([bytes],{type:'application/pdf'}),name:'edited.pdf'}))}>Review and download</button>`}
+    </div>${!pdf&&html`<p class="mu">Open a PDF, or merge several to start a new one. ${' '}Everything stays in your browser.</p>`}</div>
+    ${pdf&&html`<div class="card"><div class="strip">
+      ${Array.from({length:pdf.numPages},(_,k)=>k+1).map(n=>html`<div key=${n} class=${'th '+(n===sel?'on':'')}>
+        <div onClick=${()=>setSel(n)}><${Thumb} pdf=${pdf} n=${n}/></div>
+        <span class="mu">${n}</span><br/>
+        <button title="Move left" disabled=${n===1} onClick=${()=>edit(c=>{[c[n-2],c[n-1]]=[c[n-1],c[n-2]];return c})}>◀</button>
+        <button title="Rotate" onClick=${()=>edit(c=>{c[n-1].r=90;return c})}>⟳</button>
+        <button title="Delete" disabled=${pdf.numPages<2} onClick=${()=>edit(c=>c.filter((_,k)=>k!==n-1))}>✕</button>
+        <button title="Move right" disabled=${n===pdf.numPages} onClick=${()=>edit(c=>{[c[n],c[n-1]]=[c[n-1],c[n]];return c})}>▶</button>
+      </div>`)}
+    </div></div>
+    <${Annot} pdf=${pdf} page=${sel} onApply=${apply}/>`}
+  </div>`;
+}
+
+/* ---------- compress ---------- */
+function Compress({run}){
+  const [f,setF]=useState(null),[pct,setPct]=useState(50);
+  const go=()=>run('Compressing',async()=>{
+    const t=f.size*pct/100;
+    if(f.type==='application/pdf'){
+      const pdf=await openPdf(await f.arrayBuffer()),cs=[];
+      for(let n=1;n<=pdf.numPages;n++){const c=document.createElement('canvas');await drawPage(pdf,n,1.5,c);cs.push(c)}
+      const mk=async q=>{const d=await PDFDocument.create();
+        for(const c of cs){const im=await d.embedJpg(c.toDataURL('image/jpeg',q)),w=c.width/1.5,h=c.height/1.5;d.addPage([w,h]).drawImage(im,{x:0,y:0,width:w,height:h})}
+        return new Blob([await d.save()],{type:'application/pdf'})};
+      return{blob:await fit(mk,t),name:'compressed.pdf',orig:f.size};
+    }
+    const img=await loadImg(f),png=f.type==='image/png',c=document.createElement('canvas');
+    const mk=async v=>{const s=png?Math.sqrt(v):1;c.width=Math.max(1,img.width*s|0);c.height=Math.max(1,img.height*s|0);
+      const x=c.getContext('2d');if(!png){x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height)}
+      x.drawImage(img,0,0,c.width,c.height);return tb(c,png?'image/png':'image/jpeg',png?undefined:v)};
+    return{blob:await fit(mk,t),name:'compressed.'+(png?'png':'jpg'),orig:f.size};
+  });
+  return html`<div class="card">
+    <label class="btn">Choose PDF, JPG or PNG<input type="file" accept="application/pdf,image/jpeg,image/png" hidden onChange=${e=>setF(e.target.files[0]||null)}/></label>
+    ${f&&html`<p>${f.name} · ${kb(f.size)}</p>
+      <div class="row"><span>Target size</span><input type="range" min="10" max="90" step="5" value=${pct} onInput=${e=>setPct(+e.target.value)}/>
+      <b>${pct}% of original (about ${kb(f.size*pct/100)})</b></div>
+      <p class="mu">PDFs are re-rendered as compressed page images, so text will no longer be selectable. PNGs are shrunk in dimensions, JPGs by quality.</p>
+      <button class="btn" onClick=${go}>Compress</button>`}
+  </div>`;
+}
+
+/* ---------- convert ---------- */
+function Convert({run}){
+  const [fs,setFs]=useState([]);
+  const e=f=>f.name.split('.').pop().toLowerCase(),k=!fs.length?'':e(fs[0])==='pdf'?'pdf':e(fs[0])==='docx'?'docx':'img';
+  return html`<div class="card">
+    <label class="btn">Choose files<input type="file" multiple accept=".pdf,.docx,image/*" hidden onChange=${ev=>setFs([...ev.target.files])}/></label>
+    <p class="mu">PDF to Word or images, Word to PDF, images to one PDF.</p>
+    ${k&&html`<p>${fs.map(f=>f.name).join(', ')}</p><div class="row">
+      ${k==='pdf'&&html`<button class="btn" onClick=${()=>run('Converting',()=>pdfToDocx(fs[0]))}>PDF to DOCX</button>
+        <button class="btn g" onClick=${()=>run('Converting',()=>pdfToImgs(fs[0]))}>PDF to PNG images</button>`}
+      ${k==='docx'&&html`<button class="btn" onClick=${()=>run('Converting',()=>docxToPdf(fs[0]))}>DOCX to PDF</button>`}
+      ${k==='img'&&html`<button class="btn" onClick=${()=>run('Converting',()=>imgsToPdf(fs))}>Images to PDF</button>`}
+    </div>
+    ${k==='pdf'&&html`<p class="mu">PDF to DOCX carries over text only, not layout or images. DOCX to PDF is plain text as well.</p>`}`}
+  </div>`;
+}
+
+/* ---------- review + download ---------- */
+function Review({r,close}){
+  const box=useRef(),[txt,setTxt]=useState(''),[msg,setMsg]=useState('');
+  useEffect(()=>{(async()=>{
+    box.current.innerHTML='';
+    if(r.name.endsWith('.pdf')){const d=await openPdf(await r.blob.arrayBuffer());
+      for(let n=1;n<=Math.min(d.numPages,30);n++){const c=document.createElement('canvas');await drawPage(d,n,1.2,c);box.current.appendChild(c)}}
+    else if(/\.(png|jpe?g)$/.test(r.name)){const bm=await createImageBitmap(r.blob),c=document.createElement('canvas');c.width=bm.width;c.height=bm.height;c.getContext('2d').drawImage(bm,0,0);box.current.appendChild(c)}
+    else if(r.name.endsWith('.docx'))setTxt((await mammoth.extractRawText({arrayBuffer:await r.blob.arrayBuffer()})).value);
+  })().catch(()=>setMsg('Preview unavailable for this file.'))},[]);
+  const save=async()=>{
+    const dl=window.claude?await claude.use('downloads'):null;
+    if(!dl){setMsg('Saving is not available in this view. Open the artifact in claude.ai to download.');return}
+    try{await dl.save({filename:r.name,data:r.blob});setMsg('Saved.')}catch(e){setMsg(e.code==='declined'?'Download cancelled.':'Could not save: '+(e.message||e.code))}
+  };
+  const bigger=r.orig&&r.blob.size>r.orig;
+  return html`<div class="modal"><div class="pane">
+    <div class="row"><b>${r.name}</b><span class="mu">${kb(r.blob.size)}${r.orig?' (original '+kb(r.orig)+')':''}</span></div>
+    ${bigger&&html`<div class="err" style=${{margin:'0 14px'}}>Result is larger than the original. This file is already compact; keep the original.</div>`}
+    <div class="view" ref=${box}></div>
+    ${txt&&html`<div class="view"><pre>${txt.slice(0,6000)}</pre></div>`}
+    <div class="row"><button class="btn" onClick=${save}>Download</button><button class="btn g" onClick=${close}>Back to editing</button><span class="mu">${msg}</span></div>
+  </div></div>`;
+}
+
+/* ---------- app ---------- */
+function App(){
+  const [tab,setTab]=useState('edit'),[res,setRes]=useState(null),[busy,setBusy]=useState(''),[err,setErr]=useState('');
+  const run=async(l,fn)=>{setBusy(l);setErr('');try{const r=await fn();if(r)setRes(r)}catch(x){setErr((l||'Task')+' failed: '+(x.message||x))}setBusy('')};
+  const T=(k,l)=>html`<button class=${tab===k?'on':''} onClick=${()=>setTab(k)}>${l}</button>`;
+  return html`<main>
+    <h1>PDF Workbench</h1><p class="sub">Edit, annotate, compress and convert files without uploading them anywhere.</p>
+    <div class="tabs">${T('edit','Edit and annotate')}${T('comp','Compress')}${T('conv','Convert')}</div>
+    ${err&&html`<div class="err">${err}</div>`}${busy&&html`<div class="busy">${busy}…</div>`}
+    <div style=${{display:tab==='edit'?'block':'none'}}><${Editor} run=${run}/></div>
+    ${tab==='comp'&&html`<${Compress} run=${run}/>`}${tab==='conv'&&html`<${Convert} run=${run}/>`}
+    ${res&&html`<${Review} key=${res.name+res.blob.size} r=${res} close=${()=>setRes(null)}/>`}
+  </main>`;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App}/>`);
+</script></body></html>
