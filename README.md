@@ -1,4 +1,4 @@
-# UPSC Study Tracker
+# Study Tracker
 
 A full-featured study tracking dashboard built with React, Chart.js, and Firebase.
 
