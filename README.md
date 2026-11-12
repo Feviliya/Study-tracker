@@ -82,15 +82,3 @@ Your app will be live at `https://YOUR_PROJECT.web.app`
 ```
 
 ---
-
-## Customising Exam Dates
-
-Edit the `exams` array inside `App` in `index.html`:
-
-```js
-const exams = [
-  { name: 'UPSC Prelims 2026', date: '2026-05-24' },
-  { name: 'UPSC Mains 2026',   date: '2026-09-21' },
-  { name: 'Interview',          date: '2027-02-01' },
-];
-```
